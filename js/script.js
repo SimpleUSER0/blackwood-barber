@@ -15,7 +15,7 @@ function setMenu(open, restoreFocus = false) {
   menuOpen = open;
   navigation.classList.toggle('is-open', open);
   menuButton.setAttribute('aria-expanded', String(open));
-  menuButton.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  menuButton.setAttribute('aria-label', open ? 'მენიუს დახურვა' : 'მენიუს გახსნა');
   updateScrollLock();
   if (restoreFocus) menuButton.focus();
 }
@@ -78,7 +78,16 @@ document.querySelectorAll('dialog').forEach(dialog => {
   });
 });
 
-// Demo form: no fetch, XMLHttpRequest, storage, analytics or third-party form service.
+// Static click-to-chat: data stays in the page until the visitor opens WhatsApp.
+// The recipient number is public configuration, never a secret/API credential.
+const WHATSAPP_NUMBER = '995598623336';
+function whatsappLink(message) {
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+const generalMessage = '[სატესტო მოთხოვნა] BLACKWOOD BARBER\nგამარჯობა! მსურს ვიზიტის დეტალების შეთანხმება. ეს პორტფოლიოს საიტიდან გამოგზავნილი ტესტია.';
+document.querySelectorAll('[data-whatsapp]').forEach(link => {
+  link.href = whatsappLink(generalMessage);
+});
 const bookingDialog = document.querySelector('#booking-dialog');
 const bookingForm = document.querySelector('#booking-form');
 const formView = document.querySelector('#booking-form-view');
@@ -88,55 +97,100 @@ const phoneInput = document.querySelector('#booking-phone');
 const serviceInput = document.querySelector('#booking-service');
 const dateInput = document.querySelector('#booking-date');
 const errorMessage = document.querySelector('#booking-error');
+const requestPreview = document.querySelector('#whatsapp-preview');
+const whatsappButton = document.querySelector('#booking-whatsapp');
+const summary = document.querySelector('#booking-summary');
+const copyStatus = document.querySelector('#copy-status');
 
 function todayLocal() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
+function clearPreparedRequest() {
+  requestPreview.textContent = '';
+  summary.textContent = '';
+  whatsappButton.removeAttribute('href');
+  copyStatus.textContent = '';
+}
 function resetBooking() {
   bookingForm.reset();
-  [nameInput, phoneInput, dateInput].forEach(input => input.setCustomValidity(''));
+  [nameInput, phoneInput, serviceInput, dateInput].forEach(input => input.setCustomValidity(''));
   errorMessage.textContent = '';
   dateInput.min = todayLocal();
+  clearPreparedRequest();
 }
-document.querySelectorAll('[data-book]').forEach(button => button.addEventListener('click', () => {
-  resetBooking();
+function showBookingForm() {
   formView.hidden = false;
   successView.hidden = true;
   bookingDialog.setAttribute('aria-labelledby', 'booking-dialog-title');
   bookingDialog.setAttribute('aria-describedby', 'booking-explanation');
+}
+document.querySelectorAll('[data-book]').forEach(button => button.addEventListener('click', () => {
+  resetBooking();
+  showBookingForm();
   serviceInput.value = button.dataset.service || '';
   openDialog(bookingDialog, button);
   nameInput.focus({preventScroll:true});
 }));
-[nameInput, phoneInput, dateInput].forEach(input => input.addEventListener('input', () => {
+[nameInput, phoneInput, serviceInput, dateInput].forEach(input => input.addEventListener('input', () => {
   input.setCustomValidity('');
   errorMessage.textContent = '';
 }));
+bookingForm.noValidate = true;
 bookingForm.addEventListener('submit', event => {
   event.preventDefault();
-  if (nameInput.value.trim().length < 2) nameInput.setCustomValidity('Please enter a demo name with at least 2 characters.');
+  [nameInput, phoneInput, serviceInput, dateInput].forEach(input => input.setCustomValidity(''));
+  if (nameInput.value.trim().length < 2) nameInput.setCustomValidity('სახელში შეიყვანე სულ მცირე 2 სიმბოლო.');
   const phone = phoneInput.value.trim();
   const digits = phone.replace(/\D/g, '');
-  if (!/^[+\d\s()-]+$/.test(phone) || digits.length < 7 || digits.length > 15) {
-    phoneInput.setCustomValidity('Please use 7–15 digits for the demo phone number.');
+  if (phone && (!/^[+\d\s()-]+$/.test(phone) || digits.length < 7 || digits.length > 15)) {
+    phoneInput.setCustomValidity('ტელეფონის ნომერი უნდა შეიცავდეს 7–15 ციფრს.');
   }
+  if (!serviceInput.value) serviceInput.setCustomValidity('აირჩიე სერვისი.');
   dateInput.min = todayLocal();
-  if (dateInput.value < dateInput.min) dateInput.setCustomValidity('Please select today or a future date.');
+  if (!dateInput.value) dateInput.setCustomValidity('აირჩიე სასურველი თარიღი.');
+  else if (dateInput.value < dateInput.min || !dateInput.validity.valid) dateInput.setCustomValidity('აირჩიე დღევანდელი ან მომავალი სწორი თარიღი.');
   if (!bookingForm.reportValidity()) {
-    errorMessage.textContent = 'Please check the highlighted field and try again.';
+    errorMessage.textContent = 'გადაამოწმე მონიშნული ველი და სცადე ხელახლა.';
     return;
   }
   const chosenDate = new Date(`${dateInput.value}T12:00:00`);
-  document.querySelector('#booking-summary').textContent = `${serviceInput.value} · ${new Intl.DateTimeFormat('en-GB', {day:'numeric', month:'long', year:'numeric'}).format(chosenDate)}`;
-  resetBooking();
+  const months = ['იანვარი','თებერვალი','მარტი','აპრილი','მაისი','ივნისი','ივლისი','აგვისტო','სექტემბერი','ოქტომბერი','ნოემბერი','დეკემბერი'];
+  const dateLabel = `${chosenDate.getDate()} ${months[chosenDate.getMonth()]} ${chosenDate.getFullYear()}`;
+  const selectedOption = serviceInput.selectedOptions[0].textContent;
+  // textContent and URL encoding keep visitor input as text, including &, + and Georgian.
+  const message = [
+    '[სატესტო მოთხოვნა] BLACKWOOD BARBER',
+    'გამარჯობა! მსურს ვიზიტის დეტალების შეთანხმება.',
+    `სახელი: ${nameInput.value.trim()}`,
+    ...(phone ? [`საკონტაქტო ტელეფონი: ${phone}`] : []),
+    `სერვისი: ${selectedOption}`,
+    `სასურველი თარიღი: ${dateLabel}`,
+    'ეს სატესტო მოთხოვნაა. თარიღი და ფასი დასადასტურებელია; ავტომატური ჯავშანი არ შექმნილა.'
+  ].join('\n');
+  summary.textContent = `${serviceInput.value} · ${dateLabel}`;
+  requestPreview.textContent = message;
+  whatsappButton.href = whatsappLink(message);
+  copyStatus.textContent = '';
   formView.hidden = true;
   successView.hidden = false;
-  successView.querySelector('h2').id = 'success-title';
   bookingDialog.setAttribute('aria-labelledby', 'success-title');
   bookingDialog.removeAttribute('aria-describedby');
   successView.focus();
   bookingDialog.scrollTop = 0;
+});
+document.querySelector('#booking-edit').addEventListener('click', () => {
+  clearPreparedRequest();
+  showBookingForm();
+  nameInput.focus();
+});
+document.querySelector('#copy-request').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(requestPreview.textContent);
+    copyStatus.textContent = 'ტექსტი დაკოპირებულია. გაგზავნა თავად უნდა დაადასტურო.';
+  } catch {
+    copyStatus.textContent = 'კოპირება მიუწვდომელია. მონიშნე ზემოთ მოცემული ტექსტი და დააკოპირე ხელით.';
+  }
 });
 bookingDialog.addEventListener('close', resetBooking);
 
@@ -179,7 +233,7 @@ lightboxImage.addEventListener('touchend', event => {
 // Social actions explain the demo rather than opening an invented account.
 const socialDialog = document.querySelector('#social-dialog');
 document.querySelectorAll('[data-social]').forEach(button => button.addEventListener('click', () => {
-  document.querySelector('#social-message').textContent = `This is a ${button.dataset.social} demo button. BLACKWOOD BARBER is a fictional portfolio project and has no real ${button.dataset.social} account. No message has been sent.`;
+  document.querySelector('#social-message').textContent = `ეს ${button.dataset.social}-ის ღილაკის ნიმუშია. BLACKWOOD BARBER გამოგონილი ბრენდია და რეალური ${button.dataset.social} ანგარიში მითითებული არ არის. შეტყობინება არ გაგზავნილა.`;
   openDialog(socialDialog, button);
 }));
 
