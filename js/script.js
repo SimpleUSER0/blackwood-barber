@@ -84,7 +84,7 @@ const WHATSAPP_NUMBER = '995598623336';
 function whatsappLink(message) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
-const generalMessage = '[სატესტო მოთხოვნა] BLACKWOOD BARBER\nგამარჯობა! მსურს ვიზიტის დეტალების შეთანხმება. ეს პორტფოლიოს საიტიდან გამოგზავნილი ტესტია.';
+const generalMessage = 'გამარჯობა! მსურს BLACKWOOD BARBER-ში ვიზიტის დეტალების შეთანხმება.';
 document.querySelectorAll('[data-whatsapp]').forEach(link => {
   link.href = whatsappLink(generalMessage);
 });
@@ -96,6 +96,7 @@ const nameInput = document.querySelector('#booking-name');
 const phoneInput = document.querySelector('#booking-phone');
 const serviceInput = document.querySelector('#booking-service');
 const dateInput = document.querySelector('#booking-date');
+const timeInput = document.querySelector('#booking-time');
 const errorMessage = document.querySelector('#booking-error');
 const requestPreview = document.querySelector('#whatsapp-preview');
 const whatsappButton = document.querySelector('#booking-whatsapp');
@@ -114,7 +115,7 @@ function clearPreparedRequest() {
 }
 function resetBooking() {
   bookingForm.reset();
-  [nameInput, phoneInput, serviceInput, dateInput].forEach(input => input.setCustomValidity(''));
+  [nameInput, phoneInput, serviceInput, dateInput, timeInput].forEach(input => input.setCustomValidity(''));
   errorMessage.textContent = '';
   dateInput.min = todayLocal();
   clearPreparedRequest();
@@ -132,14 +133,14 @@ document.querySelectorAll('[data-book]').forEach(button => button.addEventListen
   openDialog(bookingDialog, button);
   nameInput.focus({preventScroll:true});
 }));
-[nameInput, phoneInput, serviceInput, dateInput].forEach(input => input.addEventListener('input', () => {
+[nameInput, phoneInput, serviceInput, dateInput, timeInput].forEach(input => input.addEventListener('input', () => {
   input.setCustomValidity('');
   errorMessage.textContent = '';
 }));
 bookingForm.noValidate = true;
 bookingForm.addEventListener('submit', event => {
   event.preventDefault();
-  [nameInput, phoneInput, serviceInput, dateInput].forEach(input => input.setCustomValidity(''));
+  [nameInput, phoneInput, serviceInput, dateInput, timeInput].forEach(input => input.setCustomValidity(''));
   if (nameInput.value.trim().length < 2) nameInput.setCustomValidity('სახელში შეიყვანე სულ მცირე 2 სიმბოლო.');
   const phone = phoneInput.value.trim();
   const digits = phone.replace(/\D/g, '');
@@ -150,6 +151,7 @@ bookingForm.addEventListener('submit', event => {
   dateInput.min = todayLocal();
   if (!dateInput.value) dateInput.setCustomValidity('აირჩიე სასურველი თარიღი.');
   else if (dateInput.value < dateInput.min || !dateInput.validity.valid) dateInput.setCustomValidity('აირჩიე დღევანდელი ან მომავალი სწორი თარიღი.');
+  if (timeInput.value && !timeInput.validity.valid) timeInput.setCustomValidity('აირჩიე სწორი საათი, 15-წუთიანი ინტერვალით.');
   if (!bookingForm.reportValidity()) {
     errorMessage.textContent = 'გადაამოწმე მონიშნული ველი და სცადე ხელახლა.';
     return;
@@ -160,15 +162,16 @@ bookingForm.addEventListener('submit', event => {
   const selectedOption = serviceInput.selectedOptions[0].textContent;
   // textContent and URL encoding keep visitor input as text, including &, + and Georgian.
   const message = [
-    '[სატესტო მოთხოვნა] BLACKWOOD BARBER',
-    'გამარჯობა! მსურს ვიზიტის დეტალების შეთანხმება.',
+    'BLACKWOOD BARBER — ვიზიტის მოთხოვნა',
+    'გამარჯობა! მსურს ვიზიტის დაჯავშნა.',
     `სახელი: ${nameInput.value.trim()}`,
     ...(phone ? [`საკონტაქტო ტელეფონი: ${phone}`] : []),
     `სერვისი: ${selectedOption}`,
     `სასურველი თარიღი: ${dateLabel}`,
-    'ეს სატესტო მოთხოვნაა. თარიღი და ფასი დასადასტურებელია; ავტომატური ჯავშანი არ შექმნილა.'
+    ...(timeInput.value ? [`სასურველი საათი: ${timeInput.value}`] : []),
+    'გთხოვთ, დამიდასტუროთ თავისუფალი დრო.'
   ].join('\n');
-  summary.textContent = `${serviceInput.value} · ${dateLabel}`;
+  summary.textContent = `${serviceInput.value} · ${dateLabel}${timeInput.value ? ` · ${timeInput.value}` : ''}`;
   requestPreview.textContent = message;
   whatsappButton.href = whatsappLink(message);
   copyStatus.textContent = '';
@@ -229,13 +232,6 @@ lightboxImage.addEventListener('touchend', event => {
   if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) showPhoto(photoIndex + (deltaX < 0 ? 1 : -1));
   touchStart = null;
 }, {passive:true});
-
-// Social actions explain the demo rather than opening an invented account.
-const socialDialog = document.querySelector('#social-dialog');
-document.querySelectorAll('[data-social]').forEach(button => button.addEventListener('click', () => {
-  document.querySelector('#social-message').textContent = `ეს ${button.dataset.social}-ის ღილაკის ნიმუშია. BLACKWOOD BARBER გამოგონილი ბრენდია და რეალური ${button.dataset.social} ანგარიში მითითებული არ არის. შეტყობინება არ გაგზავნილა.`;
-  openDialog(socialDialog, button);
-}));
 
 if ('IntersectionObserver' in window) {
   const navLinks = [...navigation.querySelectorAll('a[href^="#"]')];
