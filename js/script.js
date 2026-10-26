@@ -233,6 +233,13 @@ lightboxImage.addEventListener('touchend', event => {
   touchStart = null;
 }, {passive:true});
 
+// Social actions explain the demo rather than opening an invented account.
+const socialDialog = document.querySelector('#social-dialog');
+document.querySelectorAll('[data-social]').forEach(button => button.addEventListener('click', () => {
+  document.querySelector('#social-message').textContent = `ეს ${button.dataset.social}-ის ღილაკის ნიმუშია. BLACKWOOD BARBER გამოგონილი ბრენდია და რეალური ${button.dataset.social} ანგარიში მითითებული არ არის. შეტყობინება არ გაგზავნილა.`;
+  openDialog(socialDialog, button);
+}));
+
 if ('IntersectionObserver' in window) {
   const navLinks = [...navigation.querySelectorAll('a[href^="#"]')];
   const sectionObserver = new IntersectionObserver(entries => {
@@ -259,3 +266,4 @@ if ('IntersectionObserver' in window) {
   }
 }
 document.querySelector('#year').textContent = new Date().getFullYear();
+
